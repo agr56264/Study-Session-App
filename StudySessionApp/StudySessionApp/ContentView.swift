@@ -8,57 +8,6 @@
 import SwiftUI
 import Combine
 
-final class FocusService: ObservableObject {
-    @Published var focused: Bool = true
-
-    private var timer: AnyCancellable?
-    private let url: URL
-
-    init(urlString: String) {
-        self.url = URL(string: urlString)!
-    }
-
-    func startPolling(every seconds: TimeInterval = 0.5) {
-        stopPolling()
-        timer = Timer.publish(every: seconds, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                self?.fetch()
-            }
-    }
-
-    func stopPolling() {
-        timer?.cancel()
-        timer = nil
-    }
-
-    private func fetch() {
-        let req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2)
-        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
-            guard let self, let data else { return }
-
-            var newValue: Bool? = nil
-
-            if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                if let b = obj["focused"] as? Bool {
-                    newValue = b
-                } else if let i = obj["focused"] as? Int {
-                    newValue = (i != 0)
-                } else if let s = obj["focused"] as? String {
-                    let lower = s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                    newValue = (lower == "true" || lower == "1" || lower == "yes" || lower == "y")
-                }
-            }
-
-            DispatchQueue.main.async {
-                // If we can't decode or connect, treat as not focused so the UI clearly shows the failure.
-                self.focused = newValue ?? false
-            }
-            return
-        }.resume()
-    }
-}
-
 enum SessionType: String {
     case work = "Work"
     case breakTime = "Break"
@@ -80,8 +29,8 @@ struct ContentView: View {
     @State private var showLockInAlert: Bool = false
     @State private var unfocusedWorkItem: DispatchWorkItem?
 
-    // Local focus status from Python server
-    @StateObject private var focusService = FocusService(urlString: "http://127.0.0.1:5000/focus")
+    // Local focus status from camera + Vision
+    @StateObject private var cameraManager = CameraManager()
 
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -107,8 +56,8 @@ struct ContentView: View {
                 HStack(spacing: 8) {
                     Circle()
                         .frame(width: 10, height: 10)
-                        .foregroundStyle(focusService.focused ? .green : .red)
-                    Text(focusService.focused ? "Focused" : "Not Focused")
+                        .foregroundStyle(cameraManager.faceDetected ? .green : .red)
+                    Text(cameraManager.faceDetected ? "Focused" : "Not Focused")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -202,9 +151,12 @@ struct ContentView: View {
             workMinutesText = String(workMinutes)
             breakMinutesText = String(breakMinutes)
             resetCurrentSession()
-            focusService.startPolling()
+            cameraManager.start()
         }
-        .onChange(of: focusService.focused) { _, newValue in
+        .onDisappear {
+            // If you add a stop() method to CameraManager later, call it here.
+        }
+        .onChange(of: cameraManager.faceDetected) { newValue in
             if newValue == false {
                 // Stop the timer immediately when unfocused.
                 isRunning = false
@@ -213,7 +165,7 @@ struct ContentView: View {
                 unfocusedWorkItem?.cancel()
                 let workItem = DispatchWorkItem {
                     // Only show if still unfocused after 10 seconds.
-                    if focusService.focused == false {
+                    if cameraManager.faceDetected == false {
                         showLockInAlert = true
                     }
                 }
@@ -226,18 +178,18 @@ struct ContentView: View {
                 showLockInAlert = false
             }
         }
-        .onChange(of: workMinutes) { _, newValue in
+        .onChange(of: workMinutes) { newValue in
             let s = String(newValue)
             if workMinutesText != s { workMinutesText = s }
             if !isRunning && session == .work { resetCurrentSession() }
         }
-        .onChange(of: breakMinutes) { _, newValue in
+        .onChange(of: breakMinutes) { newValue in
             let s = String(newValue)
             if breakMinutesText != s { breakMinutesText = s }
             if !isRunning && session == .breakTime { resetCurrentSession() }
         }
         .onReceive(tick) { _ in
-            guard isRunning && focusService.focused else { return }
+            guard isRunning && cameraManager.faceDetected else { return }
 
             if secondsRemaining > 0 {
                 secondsRemaining -= 1
