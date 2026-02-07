@@ -28,11 +28,14 @@ struct ContentView: View {
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
+        ZStack {
+            Image("study table")
+
         VStack(spacing: 18) {
             Text("Study Session")
                 .font(.title)
                 .bold()
-
+                .padding(.vertical, 10)
             Text(session.rawValue)
                 .font(.headline)
 
@@ -107,12 +110,12 @@ struct ContentView: View {
 
                         Text("min")
                             .foregroundStyle(.secondary)
-                    }
+                    } // hstack
 
                     Stepper(value: $breakMinutes, in: 1...60) {
                         Text("\(breakMinutes)")
-                    }
-                }
+                    } // stepper
+                } // vstack
                 .frame(width: 160)
             }
             .disabled(isRunning)
@@ -120,37 +123,39 @@ struct ContentView: View {
 
             Spacer()
         }
+        .background(RoundedRectangle(cornerRadius: 30).fill(Color.white.opacity(0.5)))
         .padding(24)
         .frame(minWidth: 420, minHeight: 360)
         .onAppear {
             workMinutesText = String(workMinutes)
             breakMinutesText = String(breakMinutes)
             resetCurrentSession()
-        }
+        } // on appear
         .onChange(of: workMinutes) { _, newValue in
             // Keep the text field synced to stepper changes
             let s = String(newValue)
             if workMinutesText != s { workMinutesText = s }
 
             if !isRunning && session == .work { resetCurrentSession() }
-        }
+        } // on change
         .onChange(of: breakMinutes) { _, newValue in
             // Keep the text field synced to stepper changes
             let s = String(newValue)
             if breakMinutesText != s { breakMinutesText = s }
 
             if !isRunning && session == .breakTime { resetCurrentSession() }
-        }
+        } // on change
         .onReceive(tick) { _ in
             guard isRunning else { return }
-
+            
             if secondsRemaining > 0 {
                 secondsRemaining -= 1
             } else {
                 switchSession()
-            }
-        }
-    }
+            } // if
+        } // on recieve
+        } // zstack
+    } // body view
 
     private var totalSecondsForSession: Int {
         switch session {
