@@ -17,6 +17,8 @@ struct ContentView: View {
     // Settings (minutes)
     @State private var workMinutes: Int = 25
     @State private var breakMinutes: Int = 5
+    @State private var workMinutesText: String = "25"
+    @State private var breakMinutesText: String = "5"
 
     // Timer state
     @State private var session: SessionType = .work
@@ -61,6 +63,25 @@ struct ContentView: View {
             HStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Work (min)")
+
+                    HStack(spacing: 8) {
+                        TextField("25", text: $workMinutesText)
+                            .frame(width: 64)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: workMinutesText) { _, newValue in
+                                let digits = newValue.filter { $0.isNumber }
+                                if digits != newValue { workMinutesText = digits }
+
+                                if let v = Int(digits) {
+                                    let clamped = min(max(v, 1), 120)
+                                    if clamped != workMinutes { workMinutes = clamped }
+                                }
+                            }
+
+                        Text("min")
+                            .foregroundStyle(.secondary)
+                    }
+
                     Stepper(value: $workMinutes, in: 1...120) {
                         Text("\(workMinutes)")
                     }
@@ -69,6 +90,25 @@ struct ContentView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Break (min)")
+
+                    HStack(spacing: 8) {
+                        TextField("5", text: $breakMinutesText)
+                            .frame(width: 64)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: breakMinutesText) { _, newValue in
+                                let digits = newValue.filter { $0.isNumber }
+                                if digits != newValue { breakMinutesText = digits }
+
+                                if let v = Int(digits) {
+                                    let clamped = min(max(v, 1), 60)
+                                    if clamped != breakMinutes { breakMinutes = clamped }
+                                }
+                            }
+
+                        Text("min")
+                            .foregroundStyle(.secondary)
+                    }
+
                     Stepper(value: $breakMinutes, in: 1...60) {
                         Text("\(breakMinutes)")
                     }
@@ -83,12 +123,22 @@ struct ContentView: View {
         .padding(24)
         .frame(minWidth: 420, minHeight: 360)
         .onAppear {
+            workMinutesText = String(workMinutes)
+            breakMinutesText = String(breakMinutes)
             resetCurrentSession()
         }
-        .onChange(of: workMinutes) { _, _ in
+        .onChange(of: workMinutes) { _, newValue in
+            // Keep the text field synced to stepper changes
+            let s = String(newValue)
+            if workMinutesText != s { workMinutesText = s }
+
             if !isRunning && session == .work { resetCurrentSession() }
         }
-        .onChange(of: breakMinutes) { _, _ in
+        .onChange(of: breakMinutes) { _, newValue in
+            // Keep the text field synced to stepper changes
+            let s = String(newValue)
+            if breakMinutesText != s { breakMinutesText = s }
+
             if !isRunning && session == .breakTime { resetCurrentSession() }
         }
         .onReceive(tick) { _ in
