@@ -76,6 +76,10 @@ struct ContentView: View {
     @State private var secondsRemaining: Int = 25 * 60
     @State private var isRunning: Bool = false
 
+    // Unfocused warning
+    @State private var showLockInAlert: Bool = false
+    @State private var unfocusedWorkItem: DispatchWorkItem?
+
     // Local focus status from Python server
     @StateObject private var focusService = FocusService(urlString: "http://127.0.0.1:5000/focus")
 
@@ -202,7 +206,24 @@ struct ContentView: View {
         }
         .onChange(of: focusService.focused) { _, newValue in
             if newValue == false {
+                // Stop the timer immediately when unfocused.
                 isRunning = false
+
+                // Cancel any pending warning and schedule a new one.
+                unfocusedWorkItem?.cancel()
+                let workItem = DispatchWorkItem {
+                    // Only show if still unfocused after 10 seconds.
+                    if focusService.focused == false {
+                        showLockInAlert = true
+                    }
+                }
+                unfocusedWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10, execute: workItem)
+            } else {
+                // Focus returned: cancel pending warning and dismiss alert if showing.
+                unfocusedWorkItem?.cancel()
+                unfocusedWorkItem = nil
+                showLockInAlert = false
             }
         }
         .onChange(of: workMinutes) { _, newValue in
@@ -223,6 +244,11 @@ struct ContentView: View {
             } else {
                 switchSession()
             }
+        }
+        .alert("LOCK IN!!", isPresented: $showLockInAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("You’ve been unfocused for 10 seconds. Get back on it.")
         }
     }
 
