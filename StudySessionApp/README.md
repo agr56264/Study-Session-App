@@ -3,7 +3,8 @@ If you’re not focused, you’re clocked out.
 
 ClockedIn is a macOS study timer that enforces real accountability. Unlike traditional Pomodoro timers, time only progresses when the user is present and focused.
 
-## What It Does
+Made by Max Finch, Samantha Scalzini, Allison Ramirez Diaz
+## Purpose
 - Timed work and break sessions
 - Real-time focus detection using the device camera
 - Lives-based accountability system
