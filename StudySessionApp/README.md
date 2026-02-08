@@ -28,6 +28,7 @@ ClockedIn is a macOS study timer that enforces real accountability. Unlike tradi
 2. Right-click → Open → Open anyway
 3. Allow camera access when prompted
 
+## Behind the Scenes
 - Implemented as a native macOS application using SwiftUI’s declarative, state-driven UI architecture
 - Managed core application state including session type, timer countdown, focus status, lives, and lockout logic using SwiftUI property wrappers such as @State, @StateObject, and @AppStorage
 - Implemented time-based session updates using Combine’s Timer publisher to drive reactive countdown behavior
